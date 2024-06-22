@@ -4,6 +4,25 @@ The unofficial Flatpak of the unofficial PC port of Ocarina of Time.
 
 https://github.com/HarbourMasters/Shipwright
 
+Download ship.flatpak file from the [Releases][1] page and install it with
+
+```sh
+flatpak install --bundle /path/to/ship.flatpak
+```
+
+[1]: https://github.com/squeevee/Shipwright-flatpak/releases
+
+Permissions are fairly conservative. --device=all is necessary for controller
+support (prior to Flatpak 1.15.6). The flatpak also comes with the GameMode
+utility by FeralInteractive and needs some DBus for performance management and
+screensaver inhibiting.
+
+Saves, Mods, and OTR files go in
+
+```
+~/.var/app/com.shipofharkinian.ship/data/ship
+```
+
 ## License and copyright notice
 
 **This package contains no copyrighted material from The Legend of Zelda: Ocarina of Time.**
