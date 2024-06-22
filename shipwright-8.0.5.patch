@@ -1,0 +1,187 @@
+diff --git a/CMake/Utils.cmake b/CMake/Utils.cmake
+index c691eefc..5bce7d48 100644
+--- a/CMake/Utils.cmake
++++ b/CMake/Utils.cmake
+@@ -231,18 +231,3 @@ endfunction()
+ # Default properties of visual studio projects
+ ################################################################################
+ set(DEFAULT_CXX_PROPS "${CMAKE_CURRENT_LIST_DIR}/DefaultCXX.cmake")
+-
+-function(get_linux_lsb_release_information)
+-    find_program(LSB_RELEASE_EXEC lsb_release)
+-    if(NOT LSB_RELEASE_EXEC)
+-        message(FATAL_ERROR "Could not detect lsb_release executable, can not gather required information")
+-    endif()
+-
+-    execute_process(COMMAND "${LSB_RELEASE_EXEC}" --short --id OUTPUT_VARIABLE LSB_RELEASE_ID_SHORT OUTPUT_STRIP_TRAILING_WHITESPACE)
+-    execute_process(COMMAND "${LSB_RELEASE_EXEC}" --short --release OUTPUT_VARIABLE LSB_RELEASE_VERSION_SHORT OUTPUT_STRIP_TRAILING_WHITESPACE)
+-    execute_process(COMMAND "${LSB_RELEASE_EXEC}" --short --codename OUTPUT_VARIABLE LSB_RELEASE_CODENAME_SHORT OUTPUT_STRIP_TRAILING_WHITESPACE)
+-
+-    set(LSB_RELEASE_ID_SHORT "${LSB_RELEASE_ID_SHORT}" PARENT_SCOPE)
+-    set(LSB_RELEASE_VERSION_SHORT "${LSB_RELEASE_VERSION_SHORT}" PARENT_SCOPE)
+-    set(LSB_RELEASE_CODENAME_SHORT "${LSB_RELEASE_CODENAME_SHORT}" PARENT_SCOPE)
+-endfunction()
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2c8644af..d3da57cc 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -68,12 +68,20 @@ endif()
+ include(CMake/Utils.cmake)
+ 
+ if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+-    get_linux_lsb_release_information()
+-    message(STATUS "Linux ${LSB_RELEASE_ID_SHORT} ${LSB_RELEASE_VERSION_SHORT} ${LSB_RELEASE_CODENAME_SHORT}")
++    cmake_host_system_information(RESULT DISTRO_INFO QUERY DISTRIB_PRETTY_NAME)
++    message(STATUS "Linux ${DISTRO_INFO}")
+ else()
+     message(STATUS ${CMAKE_SYSTEM_NAME})
+ endif()
+ 
++if(DEFINED ENV{FLATPAK_ID})
++    message(STATUS "Flatpak build environment detected: $ENV{FLATPAK_ID}")
++    set(FLATPAK_BUILD On)
++else()
++    set(FLATPAK_BUILD Off)
++endif()
++set(FLATPAK_BUILD ${FLATPAK_BUILD} CACHE BOOL "On if the build is being done within flatpak-builder")
++
+ ################################################################################
+ # Additional Global Settings(add specific info there)
+ ################################################################################
+@@ -92,13 +100,15 @@ add_subdirectory(ZAPDTR/ZAPD ${CMAKE_BINARY_DIR}/ZAPD)
+ add_subdirectory(OTRExporter)
+ add_subdirectory(soh)
+ 
+-set_property(TARGET soh PROPERTY APPIMAGE_DESKTOP_FILE_TERMINAL YES)
+-set_property(TARGET soh PROPERTY APPIMAGE_DESKTOP_FILE "${CMAKE_SOURCE_DIR}/scripts/linux/appimage/soh.desktop")
+-set_property(TARGET soh PROPERTY APPIMAGE_ICON_FILE "${CMAKE_BINARY_DIR}/sohIcon.png")
+-
+ if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+-install(PROGRAMS "${CMAKE_BINARY_DIR}/linux/soh.sh" DESTINATION . COMPONENT appimage)
+-install(FILES "${CMAKE_SOURCE_DIR}/soh.otr" DESTINATION . COMPONENT ship)
++    if (NOT FLATPAK_BUILD)
++        set_property(TARGET soh PROPERTY APPIMAGE_DESKTOP_FILE_TERMINAL YES)
++        set_property(TARGET soh PROPERTY APPIMAGE_DESKTOP_FILE "${CMAKE_SOURCE_DIR}/scripts/linux/appimage/soh.desktop")
++        set_property(TARGET soh PROPERTY APPIMAGE_ICON_FILE "${CMAKE_BINARY_DIR}/sohIcon.png")
++
++        install(PROGRAMS "${CMAKE_BINARY_DIR}/linux/soh.sh" DESTINATION . COMPONENT appimage)
++        install(FILES "${CMAKE_SOURCE_DIR}/soh.otr" DESTINATION . COMPONENT ship)
++    endif()
+ install(TARGETS ZAPD DESTINATION ./assets/extractor COMPONENT extractor)
+ install(DIRECTORY "${CMAKE_SOURCE_DIR}/soh/assets/extractor/" DESTINATION ./assets/extractor COMPONENT extractor)
+ install(DIRECTORY "${CMAKE_SOURCE_DIR}/soh/assets/xml/" DESTINATION ./assets/extractor/xmls COMPONENT extractor)
+Submodule libultraship contains modified content
+diff --git a/libultraship/src/audio/Audio.cpp b/libultraship/src/audio/Audio.cpp
+index 64fa826..fb628c4 100644
+--- a/libultraship/src/audio/Audio.cpp
++++ b/libultraship/src/audio/Audio.cpp
+@@ -17,11 +17,11 @@ void Audio::InitAudioPlayer() {
+             mAudioPlayer = std::make_shared<WasapiAudioPlayer>();
+             break;
+ #endif
+-#if defined(__linux)
+-        case AudioBackend::PULSE:
+-            mAudioPlayer = std::make_shared<PulseAudioPlayer>();
+-            break;
+-#endif
++// #if defined(__linux)
++//         case AudioBackend::PULSE:
++//             mAudioPlayer = std::make_shared<PulseAudioPlayer>();
++//             break;
++// #endif
+         default:
+             mAudioPlayer = std::make_shared<SDLAudioPlayer>();
+     }
+@@ -42,9 +42,9 @@ void Audio::Init() {
+ #ifdef _WIN32
+     mAvailableAudioBackends->push_back(AudioBackend::WASAPI);
+ #endif
+-#ifdef __linux
+-    mAvailableAudioBackends->push_back(AudioBackend::PULSE);
+-#endif
++// #ifdef __linux
++//     mAvailableAudioBackends->push_back(AudioBackend::PULSE);
++// #endif
+     mAvailableAudioBackends->push_back(AudioBackend::SDL);
+ 
+     SetAudioBackend(Context::GetInstance()->GetConfig()->GetAudioBackend());
+diff --git a/libultraship/src/config/Config.cpp b/libultraship/src/config/Config.cpp
+index 2952b51..f63cae9 100644
+--- a/libultraship/src/config/Config.cpp
++++ b/libultraship/src/config/Config.cpp
+@@ -178,9 +178,9 @@ AudioBackend Config::GetAudioBackend() {
+         return AudioBackend::WASAPI;
+     }
+ 
+-    if (backendName == "pulse") {
+-        return AudioBackend::PULSE;
+-    }
++    // if (backendName == "pulse") {
++    //     return AudioBackend::PULSE;
++    // }
+ 
+     if (backendName == "sdl") {
+         return AudioBackend::SDL;
+@@ -190,8 +190,8 @@ AudioBackend Config::GetAudioBackend() {
+                  backendName);
+ #ifdef _WIN32
+     return AudioBackend::WASAPI;
+-#elif defined(__linux)
+-    return AudioBackend::PULSE;
++// #elif defined(__linux)
++//     return AudioBackend::PULSE;
+ #endif
+ 
+     return AudioBackend::SDL;
+@@ -202,9 +202,9 @@ void Config::SetAudioBackend(AudioBackend backend) {
+         case AudioBackend::WASAPI:
+             SetString("Window.AudioBackend", "wasapi");
+             break;
+-        case AudioBackend::PULSE:
+-            SetString("Window.AudioBackend", "pulse");
+-            break;
++        // case AudioBackend::PULSE:
++        //     SetString("Window.AudioBackend", "pulse");
++        //     break;
+         case AudioBackend::SDL:
+             SetString("Window.AudioBackend", "sdl");
+             break;
+diff --git a/soh/CMakeLists.txt b/soh/CMakeLists.txt
+index 5c239ae1..611562c3 100644
+--- a/soh/CMakeLists.txt
++++ b/soh/CMakeLists.txt
+@@ -757,20 +757,24 @@ INSTALL(FILES $<TARGET_PDB_FILE:soh> DESTINATION ./debug COMPONENT ship)
+ INSTALL(FILES ${CMAKE_BINARY_DIR}/soh/soh.otr DESTINATION . COMPONENT ship)
+ endif()
+ 
+-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+-configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/linux/appimage/soh.sh.in ${CMAKE_BINARY_DIR}/linux/soh.sh @ONLY)
+-endif()
+-
+-find_program(CURL NAMES curl DOC "Path to the curl program.  Used to download files.")
+-execute_process(COMMAND ${CURL} -sSfL https://raw.githubusercontent.com/gabomdq/SDL_GameControllerDB/master/gamecontrollerdb.txt -o ${CMAKE_BINARY_DIR}/gamecontrollerdb.txt OUTPUT_VARIABLE RESULT)
+-
+ if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
+ configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/macosx/Info.plist.in ${CMAKE_BINARY_DIR}/macosx/Info.plist @ONLY)
+ configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/macosx/soh-macos.sh.in ${CMAKE_BINARY_DIR}/macosx/soh-macos.sh @ONLY)
+-INSTALL(FILES ${CMAKE_BINARY_DIR}/gamecontrollerdb.txt DESTINATION ../MacOS COMPONENT ship)
+ INSTALL(FILES ${CMAKE_BINARY_DIR}/soh/soh.otr DESTINATION ../Resources COMPONENT ship)
+-elseif(NOT "${CMAKE_SYSTEM_NAME}" MATCHES "NintendoSwitch|CafeOS")
+-INSTALL(FILES ${CMAKE_BINARY_DIR}/gamecontrollerdb.txt DESTINATION . COMPONENT ship)
++endif()
++
++if (NOT FLATPAK_BUILD)
++    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
++        configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/linux/appimage/soh.sh.in ${CMAKE_BINARY_DIR}/linux/soh.sh @ONLY)
++    endif()
++
++    find_program(CURL NAMES curl DOC "Path to the curl program.  Used to download files.")
++    execute_process(COMMAND ${CURL} -sSfL https://raw.githubusercontent.com/gabomdq/SDL_GameControllerDB/master/gamecontrollerdb.txt -o ${CMAKE_BINARY_DIR}/gamecontrollerdb.txt OUTPUT_VARIABLE RESULT)
++    if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
++        INSTALL(FILES ${CMAKE_BINARY_DIR}/gamecontrollerdb.txt DESTINATION ../MacOS COMPONENT ship)
++    elseif(NOT "${CMAKE_SYSTEM_NAME}" MATCHES "NintendoSwitch|CafeOS")
++        INSTALL(FILES ${CMAKE_BINARY_DIR}/gamecontrollerdb.txt DESTINATION . COMPONENT ship)
++    endif()
+ endif()
+ 
+ if(CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")

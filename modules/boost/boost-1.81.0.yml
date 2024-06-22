@@ -1,0 +1,12 @@
+name: boost
+buildsystem: simple
+sources:
+  - type: archive
+    url: https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
+    sha256: 205666dea9f6a7cfed87c7a6dfbeb52a2c1b9de55712c9c1a87735d7181452b6
+build-commands:
+  - ./bootstrap.sh --prefix=/app --with-libraries=headers
+  - ./b2 install
+cleanup:
+  - /include
+  - /lib/cmake

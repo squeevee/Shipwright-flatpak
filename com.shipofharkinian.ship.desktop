@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Ship of Harkinian
+Comment=Unofficial source port of Ocarina of Time
+Exec=/app/bin/bootstrap.sh
+Icon=com.shipofharkinian.ship
+Terminal=false
+Type=Application
+Categories=Game

@@ -1,0 +1,75 @@
+id: com.shipofharkinian.ship
+runtime: org.freedesktop.Platform
+runtime-version: '23.08'
+sdk: org.freedesktop.Sdk
+command: bootstrap.sh
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+
+    # dri for OpenGL and Vulkan
+    # generic device access for controllers
+  - --device=all
+
+    # gamemode
+  - --talk-name=org.freedesktop.ScreenSaver
+  - --talk-name=org.freedesktop.PowerManagement.Inhibit
+  - --talk-name=org.freedesktop.login1
+modules:
+  - name: soh
+    buildsystem: cmake
+    sources:
+      - type: git
+        url: https://github.com/HarbourMasters/Shipwright.git
+        tag: 8.0.5
+
+        # fix cmake and disable pulseaudio
+      - type: patch
+        path: ./shipwright-8.0.5.patch
+
+      - type: file
+        path: ./com.shipofharkinian.ship.desktop
+      - type: file
+        path: ./com.shipofharkinian.ship.png
+    config-opts:
+      - -DCMAKE_PREFIX_PATH=/app/
+      - -DCMAKE_INSTALL_PREFIX=/app/opt/ship
+      - -DCMAKE_BUILD_TYPE=Release
+    cleanup:
+      - /opt/ship/include
+      - /opt/ship/lib/*.a
+    post-install:
+      - install -D -t /app/share/applications/ com.shipofharkinian.ship.desktop
+      - install -D -t /app/share/icons/hicolor/512x512/apps/ com.shipofharkinian.ship.png
+    modules:
+      - ./shared-modules/glu/glu-9.json
+      - ./shared-modules/glew/glew.json
+      - ./modules/libzip/libzip-1.10.1.yml
+      - ./modules/boost/boost-1.81.0.yml
+      - name: gamecontrollerdb
+        buildsystem: simple
+        sources:
+          - type: file
+            url: https://raw.githubusercontent.com/mdqinc/SDL_GameControllerDB/b1e4090b3d4266e55feb0793efa35792e05faf66/gamecontrollerdb.txt
+            sha256: 58a391912d0e84b4661afb184ddb23c4bff2ae69a423c353bcba9579e9a6a8bb
+        build-commands:
+          - install -D -t /app/opt/ship gamecontrollerdb.txt
+      - name: soh.otr
+        buildsystem: simple
+        sources:
+          - type: archive
+            url: https://github.com/HarbourMasters/Shipwright/releases/download/8.0.5/SoH-MacReady-Foxtrot-Switch.zip
+            sha256: 45e1c8d8c63a26c09eae4c54cb1686a9e7e75ee6280d8d452ddd4f25bb72381f
+        build-commands:
+          - install -D -t /app/opt/ship soh.otr
+  - name: bootstrap
+    buildsystem: simple
+    sources:
+      - type: file
+        path: bootstrap.sh
+    modules:
+      - ./modules/gamemode/gamemode-1.8.json
+    build-commands:
+      - chmod +x bootstrap.sh
+      - install -D -t /app/bin bootstrap.sh
